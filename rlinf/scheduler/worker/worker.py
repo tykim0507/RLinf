@@ -412,11 +412,31 @@ class Worker(metaclass=WorkerMeta):
 
         # Initialize Ray if not already initialized
         if not ray.is_initialized():
-            ray.init(
-                address="auto",
-                namespace=Cluster.NAMESPACE,
-                logging_level=Cluster.LOGGING_LEVEL,
-            )
+            # Ensure RAY_TMPDIR is not set to avoid overriding default /tmp/ray
+            original_ray_tmpdir = os.environ.pop("RAY_TMPDIR", None)
+            try:
+                # Try connecting without _temp_dir first to find session files correctly
+                ray.init(
+                    address="auto",
+                    namespace=Cluster.NAMESPACE,
+                    logging_level=Cluster.LOGGING_LEVEL,
+                )
+            except (PermissionError, ValueError):
+                # Restore RAY_TMPDIR if we're falling back
+                if original_ray_tmpdir is not None:
+                    os.environ["RAY_TMPDIR"] = original_ray_tmpdir
+                # If permission error or node_ip_address.json error, use user-specific temp_dir
+                ray_temp_dir = Cluster.get_ray_temp_dir()
+                ray.init(
+                    address="auto",
+                    namespace=Cluster.NAMESPACE,
+                    logging_level=Cluster.LOGGING_LEVEL,
+                    _temp_dir=ray_temp_dir,
+                )
+            else:
+                # Restore RAY_TMPDIR if connection succeeded
+                if original_ray_tmpdir is not None:
+                    os.environ["RAY_TMPDIR"] = original_ray_tmpdir
 
         if self._is_ray_actor and parent_address is not None:
             # The Worker is a Ray actor launched inside a Worker

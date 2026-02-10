@@ -17,7 +17,6 @@ from typing import Any, Optional, Union
 
 import imageio
 import numpy as np
-import tensorflow as tf
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
@@ -236,12 +235,26 @@ def put_info_on_image(
     return put_text_on_image(image, lines)
 
 
+def _require_tensorflow():
+    # Import lazily to avoid importing TF when it is not needed.
+    try:
+        import tensorflow as tf
+    except Exception as exc:
+        raise RuntimeError(
+            "TensorFlow is required for image cropping utilities. "
+            "Install a working TensorFlow build or avoid calling "
+            "`center_crop_image` / `crop_and_resize`."
+        ) from exc
+    return tf
+
+
 def crop_and_resize(image, crop_scale, batch_size):
     """
     Center-crops an image to have area `crop_scale` * (original image area), and then resizes back
     to original size. We use the same logic seen in the `dlimp` RLDS datasets wrapper to avoid
     distribution shift at test time.
     """
+    tf = _require_tensorflow()
     assert image.shape.ndims == 3 or image.shape.ndims == 4
     expanded_dims = False
     if image.shape.ndims == 3:
@@ -278,6 +291,7 @@ def crop_and_resize(image, crop_scale, batch_size):
 
 
 def center_crop_image(image):
+    tf = _require_tensorflow()
     batch_size = 1
     crop_scale = 0.9
 

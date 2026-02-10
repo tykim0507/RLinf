@@ -190,18 +190,24 @@ class Cluster:
         )
         assert self._num_nodes >= 0, "num_nodes must be greater than or equal to 0."
 
-        try:
-            # First try to connect to an existing Ray cluster
-            ray.init(
-                address="auto",
-                logging_level=Cluster.LOGGING_LEVEL,
-                namespace=Cluster.NAMESPACE,
-            )
-        except ConnectionError:
-            ray.init(
-                logging_level=Cluster.LOGGING_LEVEL,
-                namespace=Cluster.NAMESPACE,
-            )
+        import getpass
+        ray.init(
+            logging_level=Cluster.LOGGING_LEVEL,
+            namespace=Cluster.NAMESPACE,
+            _temp_dir=f"/tmp/ray_{getpass.getuser()}",
+        )
+        # try:
+        #     # First try to connect to an existing Ray cluster
+        #     ray.init(
+        #         address="auto",
+        #         logging_level=Cluster.LOGGING_LEVEL,
+        #         namespace=Cluster.NAMESPACE,
+        #     )
+        # except ConnectionError:
+        #     ray.init(
+        #         logging_level=Cluster.LOGGING_LEVEL,
+        #         namespace=Cluster.NAMESPACE,
+        #     )
 
         # If num_nodes is 0, infer the number of nodes from the connected Ray cluster
         if self._num_nodes == 0:

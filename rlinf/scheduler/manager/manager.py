@@ -30,13 +30,32 @@ class ManagerProxy:
     def __init__(self, manager_cls: "type[Manager]", no_wait: bool):
         """Launch the Manager class as a remote actor if not already running."""
         from ..worker import Worker
-
         if not ray.is_initialized():
-            ray.init(
-                address="auto",
-                namespace=Cluster.NAMESPACE,
-                logging_level=Cluster.LOGGING_LEVEL,
-            )
+            # Ensure RAY_TMPDIR is not set to avoid overriding default /tmp/ray
+            original_ray_tmpdir = os.environ.pop("RAY_TMPDIR", None)
+            try:
+                # Try connecting without _temp_dir first to find session files correctly
+                ray.init(
+                    address="auto",
+                    namespace=Cluster.NAMESPACE,
+                    logging_level=Cluster.LOGGING_LEVEL,
+                )
+            except (PermissionError, ValueError):
+                # Restore RAY_TMPDIR if we're falling back
+                if original_ray_tmpdir is not None:
+                    os.environ["RAY_TMPDIR"] = original_ray_tmpdir
+                # If permission error or node_ip_address.json error, use user-specific temp_dir
+                ray_temp_dir = Cluster.get_ray_temp_dir()
+                ray.init(
+                    address="auto",
+                    namespace=Cluster.NAMESPACE,
+                    logging_level=Cluster.LOGGING_LEVEL,
+                    _temp_dir=ray_temp_dir,
+                )
+            else:
+                # Restore RAY_TMPDIR if connection succeeded
+                if original_ray_tmpdir is not None:
+                    os.environ["RAY_TMPDIR"] = original_ray_tmpdir
 
         count = 0
         while True:
