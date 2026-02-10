@@ -35,12 +35,6 @@ cluster:
           - robot_ip: ROBOT_IP # Replace with your robot's IP address
             node_rank: 1
 
-data:
-  type: robot_demo
-  channel:
-    name: demo_data
-  path: "/path/to/demo_data"
-
 runner:
   task_type: embodied
   logger:
@@ -61,8 +55,10 @@ algorithm:
   group_size: 1
   normalize_advantages: False  # SAC doesn't use advantages
   kl_penalty: kl
+  enable_drq: False
 
-  agg_q: mean # min -> mean for real world
+  agg_q: min # or mean
+  actor_agg_q: mean
 
   backup_entropy: False    # True -> False for real world RLPD
   critic_subsample_size: 2
@@ -93,8 +89,20 @@ algorithm:
 
   critic_actor_ratio: 4 # 1 -> 4 for real world
   # Replay buffer settings
-  replay_buffer_capacity: 20000  # 300000 -> 20000 for real world
-  min_buffer_size: 200  # Minimum buffer size before training starts
+  replay_buffer:
+    enable_cache: True
+    cache_size: 200 # number of trajectories cached in memory
+    min_buffer_size: 2  # Minimum buffer size before training starts (in number of trajectories)
+    sample_window_size: 200 # number of latest trajectories to sample from for replay buffer
+    auto_save: False
+
+  demo_buffer:
+    enable_cache: True
+    cache_size: 200 # number of trajectories cached in memory
+    sample_window_size: 200 # number of latest trajectories to sample from for demo buffer
+    load_path: "/path/to/demo_data"
+    auto_save: False
+
   num_updates_per_step: 64  # Number of gradient updates per training step
   target_update_freq: 1  # Frequency of target network updates
 
@@ -131,6 +139,9 @@ rollout:
   backend: "huggingface"
   enable_offload: False
   pipeline_stage_num: 1
+
+  collect_transitions: True
+  collect_prev_infos: False
 
   model:
     model_path: "/path/to/model"
